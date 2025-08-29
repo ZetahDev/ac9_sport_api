@@ -1,13 +1,12 @@
 name: CI - ac9_sport_api
-
-
 on:
   push:
-    paths:
-      - "ac9_sport_api/**"
+    branches:
+      - main
   pull_request:
-    paths:
-      - "ac9_sport_api/**"
+  workflow_dispatch:
+permissions:
+  packages: read
 
 jobs:
   test:
