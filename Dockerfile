@@ -3,12 +3,12 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copiamos sólo lo que necesitamos desde el repo al contenedor
-COPY ac9_sport_api/requirements.txt /app/requirements.txt
+COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --upgrade pip && \
-    pip install --no-cache-dir -r /app/requirements.txt
+  pip install --no-cache-dir -r /app/requirements.txt
 
-# Copiamos la aplicación
-COPY ac9_sport_api /app/ac9_sport_api
+# Copiamos la aplicación (copia el contenido del repositorio al contenedor)
+COPY . /app
 
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
