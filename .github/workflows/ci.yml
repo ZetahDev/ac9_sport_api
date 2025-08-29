@@ -3,8 +3,15 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "ac9_sport_api/**"
   pull_request:
-  workflow_dispatch:
+    branches:
+      - main
+    paths:
+      - "ac9_sport_api/**"
+  workflow_dispatch: {}
+
 permissions:
   packages: read
 
