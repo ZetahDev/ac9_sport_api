@@ -105,3 +105,21 @@ Contribuciones y siguientes pasos sugeridos
 ---
 
 Archivo actualizado para reflejar la arquitectura actual (Beanie + MongoDB).
+
+Publicar imagen en GHCR (opcional)
+
+Si quieres que el workflow publique la imagen del contenedor en GitHub Container Registry (GHCR), sigue estos pasos:
+
+1. Crea un Personal Access Token (PAT) en GitHub con los scopes: `write:packages` y `repo` (si el repositorio es privado).
+
+- GitHub: Settings → Developer settings → Personal access tokens → Generate new token.
+
+2. Guarda el token como secret en el repositorio `ZetahDev/ac9_sport_api`:
+
+- Repo → Settings → Secrets → Actions → New repository secret
+- Name: `GHCR_PAT`
+- Value: <tu token PAT>
+
+3. El workflow `ci.yml` construido en `.github/workflows/ci.yml` ya intentará publicar la imagen en GHCR cuando detecte `GHCR_PAT` configurado.
+
+Comprobación rápida: después de configurar el secret, empuja un commit y revisa la job `publish` en Actions; la imagen quedará en `ghcr.io/ZetahDev/ac9_sport_api:latest`.

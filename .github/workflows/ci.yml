@@ -24,7 +24,7 @@ jobs:
           pip install pytest
       - name: Run tests
         run: |
-          pytest -q || true
+          pytest -q
 
   build-docker:
     runs-on: ubuntu-latest
@@ -37,3 +37,29 @@ jobs:
       - name: Show image size
         run: |
           docker images ac9_sport_api:ci --format "{{.Repository}}:{{.Tag}} {{.Size}}"
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: build-docker
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Abort if GHCR_PAT missing
+        run: |
+          if [ -z "${{ secrets.GHCR_PAT }}" ]; then
+            echo "GHCR_PAT not configured; skipping publish job.";
+            exit 0;
+          fi
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_PAT }}
+      - name: Build and push image to GHCR
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ac9_sport_api/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/ac9_sport_api:latest
