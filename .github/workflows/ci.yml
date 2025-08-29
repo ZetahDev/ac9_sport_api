@@ -1,5 +1,6 @@
 name: CI - ac9_sport_api
 
+
 on:
   push:
     paths:
@@ -50,16 +51,22 @@ jobs:
             echo "GHCR_PAT not configured; skipping publish job.";
             exit 0;
           fi
+      - name: Set IMAGE_TAG (lowercase owner)
+        run: |
+          OWNER="${{ github.repository_owner }}"
+          OWNER_LOWER=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_TAG=ghcr.io/${OWNER_LOWER}/ac9_sport_api:latest" >> $GITHUB_ENV
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PAT }}
+
       - name: Build and push image to GHCR
         uses: docker/build-push-action@v4
         with:
           context: .
           file: ac9_sport_api/Dockerfile
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/ac9_sport_api:latest
+          tags: ${{ env.IMAGE_TAG }}
