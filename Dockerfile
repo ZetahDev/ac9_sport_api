@@ -8,7 +8,7 @@ RUN python -m pip install --upgrade pip && \
     pip install --no-cache-dir -r /app/requirements.txt
 
 # Copiamos la aplicación
-COPY ac9_sport_api /app
+COPY ac9_sport_api /app/ac9_sport_api
 
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
