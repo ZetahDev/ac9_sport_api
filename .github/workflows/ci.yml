@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r ac9_sport_api/requirements.txt
+          pip install -r requirements.txt
           pip install pytest
       - name: Run tests
         run: |
@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Docker image
         run: |
-          docker build -f ac9_sport_api/Dockerfile -t ac9_sport_api:ci .
+          docker build -f Dockerfile -t ac9_sport_api:ci .
       - name: Show image size
         run: |
           docker images ac9_sport_api:ci --format "{{.Repository}}:{{.Tag}} {{.Size}}"
@@ -73,6 +73,6 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: ac9_sport_api/Dockerfile
+          file: Dockerfile
           push: true
           tags: ${{ env.IMAGE_TAG }}
