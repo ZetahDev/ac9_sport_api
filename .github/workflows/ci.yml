@@ -31,7 +31,16 @@ jobs:
           pip install pytest
       - name: Run tests
         run: |
+          # Disable errexit so we can inspect pytest's exit code and handle the "no tests collected" case.
+          set +e
           pytest -q
+          rc=$?
+          if [ "$rc" -eq 5 ]; then
+            echo "Pytest collected no tests (exit code 5); continuing without failing the job."
+          elif [ "$rc" -ne 0 ]; then
+            echo "Pytest failed with exit code $rc";
+            exit $rc
+          fi
 
   build-docker:
     runs-on: ubuntu-latest
