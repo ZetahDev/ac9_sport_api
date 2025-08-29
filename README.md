@@ -26,7 +26,7 @@ Crea `ac9_sport_api/.env` con al menos:
 
 ```
 API_KEY=tu_api_key_de_admin
-MONGO_URI="mongodb+srv://usuario:password@cluster.mongodb.net/?retryWrites=true&w=majority"
+MONGO_URI="PASS"
 MONGO_DB=ac9_sport
 ```
 
