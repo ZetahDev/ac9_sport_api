@@ -3,7 +3,7 @@ uvicorn[standard]
 beanie
 motor
 python-multipart
-pydantic
+pydantic[email]
 python-dotenv
 Pillow
 dnspython
