@@ -20,4 +20,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8000/health || exit 1
 
 # Arranque con el path de paquete correcto
-CMD ["uvicorn", "ac9_sport_api.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# The application package is `app`, so use `app.main:app` as the uvicorn target.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
