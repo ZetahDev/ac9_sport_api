@@ -1,6 +1,6 @@
 from typing import List, Optional, Any
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from ..models import Product, Category
+from ..models import Product, Category, Subcategory
 from ..deps import get_current_active_superuser
 from ..core.s3 import upload_file_to_local, save_base64_image
 import json
@@ -268,6 +268,55 @@ def _normalize_product_stock(stock_raw) -> List[dict]:
     ]
 
 
+async def _resolve_product_categories(p) -> List[dict]:
+    """
+    Given a Product document `p`, resolve its stored category references
+    (stored as [{'categoryId': id}, ...]) into a list of {id, name} objects
+    suitable for the frontend. This keeps responses stable even for legacy
+    documents that might only store ids.
+    """
+    out = []
+    if not getattr(p, "categories", None):
+        return out
+    for entry in p.categories:
+        try:
+            cid = None
+            if isinstance(entry, dict):
+                cid = entry.get("categoryId") or entry.get("id")
+            else:
+                cid = entry
+            if not cid:
+                continue
+            # Try to fetch Category document to obtain name
+            try:
+                cat = await Category.get(cid)
+            except Exception:
+                cat = None
+            if cat:
+                out.append({"id": str(cat.id), "name": cat.name})
+            else:
+                out.append({"id": str(cid), "name": None})
+        except Exception:
+            continue
+    return out
+
+
+async def _resolve_product_subcategory(p) -> Optional[dict]:
+    """
+    Resolve a product's `subcategoryId` into {id, name} or return None.
+    """
+    cid = getattr(p, "subcategoryId", None)
+    if not cid:
+        return None
+    try:
+        sub = await Subcategory.get(cid)
+    except Exception:
+        sub = None
+    if sub:
+        return {"id": str(sub.id), "name": sub.name}
+    return {"id": str(cid), "name": None}
+
+
 @router.get("/", response_model=List[dict])
 async def read_products(
     skip: int = 0, limit: int = 100, search: Optional[str] = None
@@ -297,6 +346,8 @@ async def read_products(
                 "price": p.price,
                 "sizes": p.sizes,
                 "stockBySize": stock_list,
+                "categories": await _resolve_product_categories(p),
+                "subcategory": await _resolve_product_subcategory(p),
                 "images": [resolve_public_image_url(i) for i in (p.images or [])],
                 "isActive": p.isActive,
                 "isFeatured": p.isFeatured,
@@ -586,6 +637,8 @@ async def get_product(product_id: str = Path(...)) -> dict:
         "price": p.price,
         "sizes": p.sizes,
         "stockBySize": stock_list,
+        "categories": await _resolve_product_categories(p),
+        "subcategory": await _resolve_product_subcategory(p),
         "images": [resolve_public_image_url(i) for i in (p.images or [])],
         "isActive": p.isActive,
         "isFeatured": p.isFeatured,
@@ -711,18 +764,61 @@ async def update_product(
 
     sizes_with_stock = _normalize_sizes_for_update(product_in)
     _update_simple_fields(p, product_in)
+    _update_stock_by_size(p, product_in, sizes_with_stock)
+    _update_images(p, product_in)
+    _update_categories(p, product_in)
+    _update_subcategory(p, product_in)
 
-    # Persist stock when client provided explicit stockBySize OR when sizes
-    # were provided as objects with stock (sizes_with_stock). This ensures
-    # updates that send sizes like [{size,stock}, ...] will persist stock
-    # even if they don't include the 'stockBySize' key.
+    p.updatedAt = datetime.now(tz=timezone.utc)
+    await _save_product(p)
+    return {
+        "id": str(p.id),
+        "name": p.name,
+        "images": [resolve_public_image_url(i) for i in (p.images or [])],
+    }
+
+
+def _update_stock_by_size(p, product_in, sizes_with_stock):
     if "stockBySize" in product_in or sizes_with_stock:
         stock_by_size_dict = _normalize_stock_by_size(product_in, p, sizes_with_stock)
         p.stockBySize = stock_by_size_dict
 
-    _update_images(p, product_in)
 
-    p.updatedAt = datetime.now(tz=timezone.utc)
+def _update_categories(p, product_in):
+    if "categoryIds" not in product_in:
+        return
+    incoming = product_in.get("categoryIds") or []
+    incoming = _parse_category_ids(incoming)
+    p.categories = [{"categoryId": cid} for cid in incoming if cid]
+
+def _parse_category_ids(incoming):
+    # Helper to parse categoryIds from various formats
+    if isinstance(incoming, str):
+        try:
+            parsed = json.loads(incoming)
+            if isinstance(parsed, list):
+                return parsed
+            return [parsed] if parsed else []
+        except Exception:
+            return [incoming] if incoming else []
+    if isinstance(incoming, list):
+        return incoming
+    return [incoming] if incoming else []
+
+
+def _update_subcategory(p, product_in):
+    if "subcategoryId" in product_in:
+        sub_in = product_in.get("subcategoryId")
+        if isinstance(sub_in, str):
+            try:
+                maybe = json.loads(sub_in)
+                sub_in = maybe
+            except Exception:
+                pass
+        p.subcategoryId = sub_in or None
+
+
+async def _save_product(p):
     try:
         await p.save()
     except Exception as exc:
@@ -730,11 +826,6 @@ async def update_product(
         raise HTTPException(
             status_code=500, detail="Internal server error: could not save product"
         )
-    return {
-        "id": str(p.id),
-        "name": p.name,
-        "images": [resolve_public_image_url(i) for i in (p.images or [])],
-    }
 
 
 @router.delete("/{product_id}")
