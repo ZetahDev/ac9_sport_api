@@ -104,8 +104,16 @@ async def delete_macro_category(
 
 @router.get("/{macro_id}", response_model=dict)
 async def get_macro(macro_id: str = Path(...)):
-    # MacroCategory.id is a UUID string stored as `id` field, so query by that
+    # Try multiple resolution strategies to be robust against id formats
     m = await MacroCategory.find_one({"id": macro_id})
+    if not m:
+        try:
+            m = await MacroCategory.get(macro_id)
+        except Exception:
+            m = None
+    if not m:
+        # fallback: try slug
+        m = await MacroCategory.find_one({"slug": macro_id})
     if not m:
         raise HTTPException(status_code=404, detail=MACRO_NOT_FOUND)
     return {
@@ -119,8 +127,16 @@ async def get_macro(macro_id: str = Path(...)):
 
 @router.get("/{macro_id}/categories", response_model=List[dict])
 async def get_categories_by_macro(macro_id: str = Path(...)):
-    # Ensure macro exists
+    # Resolve macro by multiple strategies to be robust against id formats
     m = await MacroCategory.find_one({"id": macro_id})
+    if not m:
+        try:
+            m = await MacroCategory.get(macro_id)
+        except Exception:
+            m = None
+    if not m:
+        # fallback: try slug
+        m = await MacroCategory.find_one({"slug": macro_id})
     if not m:
         raise HTTPException(status_code=404, detail=MACRO_NOT_FOUND)
     cats = await Category.find_many({"macro_category_id": macro_id}).to_list()

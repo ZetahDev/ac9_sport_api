@@ -16,6 +16,14 @@ async def verify_category_exists(category_id: str):
         raise HTTPException(status_code=404, detail="Category not found")
 
 
+async def verify_categories_exist(category_ids: List[str]):
+    # validate each id in the list
+    for cid in category_ids:
+        c = await Category.get(cid)
+        if not c:
+            raise HTTPException(status_code=404, detail=f"Category not found: {cid}")
+
+
 @router.get("/", response_model=List[dict])
 async def get_subcategories_minimal(
     category_id: Optional[str] = Query(None),
@@ -26,7 +34,10 @@ async def get_subcategories_minimal(
     if category_id:
         await verify_category_exists(category_id)
         docs = (
-            await Subcategory.find_many({"category_id": category_id})
+            # include subcategories that either have category_id or category_ids containing the id
+            await Subcategory.find_many(
+                {"$or": [{"category_id": category_id}, {"category_ids": category_id}]}
+            )
             .skip(skip)
             .limit(limit)
             .to_list()
@@ -42,7 +53,7 @@ async def get_subcategories_minimal(
             "id": str(r.id),
             "name": r.name,
             "description": r.description,
-            "categoryId": r.category_id,
+            "categoryIds": r.category_ids or ([r.category_id] if r.category_id else []),
         }
         for r in docs
     ]
@@ -52,29 +63,35 @@ async def get_subcategories_minimal(
 async def create_subcategory(
     subcategory_in: dict, _=Depends(get_current_active_superuser)
 ):
-    await verify_category_exists(subcategory_in.get("categoryId"))
-    existing = await Subcategory.find_one(
-        {
-            "name": subcategory_in.get("name"),
-            "category_id": subcategory_in.get("categoryId"),
-        }
+    # Accept either categoryIds (list) or categoryId (single). Validate categories.
+    category_ids = subcategory_in.get("categoryIds") or (
+        [subcategory_in.get("categoryId")] if subcategory_in.get("categoryId") else None
     )
-    if existing:
-        raise HTTPException(
-            status_code=400,
-            detail="A subcategory with this name already exists in this category",
-        )
+    if category_ids:
+        await verify_categories_exist(category_ids)
+    # prevent duplicate name inside any of the provided categories
+    if category_ids:
+        for cid in category_ids:
+            existing = await Subcategory.find_one(
+                {"name": subcategory_in.get("name"), "category_id": cid}
+            )
+            if existing:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"A subcategory with this name already exists in category {cid}",
+                )
     s = Subcategory(
         name=subcategory_in.get("name"),
         description=subcategory_in.get("description"),
-        category_id=subcategory_in.get("categoryId"),
+        category_id=(category_ids[0] if category_ids else None),
+        category_ids=category_ids,
     )
     await s.insert()
     return {
         "id": str(s.id),
         "name": s.name,
         "description": s.description,
-        "categoryId": s.category_id,
+        "categoryIds": s.category_ids or ([s.category_id] if s.category_id else []),
     }
 
 
@@ -89,14 +106,13 @@ async def get_subcategory(
         "id": str(s.id),
         "name": s.name,
         "description": s.description,
-        "categoryId": s.category_id,
+        "categoryIds": s.category_ids or ([s.category_id] if s.category_id else []),
     }
 
 
 @router.put("/{subcategory_id}", response_model=dict)
 async def update_subcategory(
-    subcategory_id: str = Path(...),
-    subcategory_in: dict = Body(...)
+    subcategory_id: str = Path(...), subcategory_in: dict = Body(...)
 ):
     s = await Subcategory.get(subcategory_id)
     if not s:
@@ -105,29 +121,67 @@ async def update_subcategory(
         s.name = subcategory_in.get("name")
     if "description" in subcategory_in:
         s.description = subcategory_in.get("description")
-    if "categoryId" in subcategory_in:
+    # Support updating either a single categoryId or multiple categoryIds
+    if "categoryIds" in subcategory_in:
+        ids = subcategory_in.get("categoryIds") or []
+        await verify_categories_exist(ids)
+        s.category_ids = ids
+        # keep category_id as first item for backward compatibility
+        s.category_id = ids[0] if ids else None
+    elif "categoryId" in subcategory_in:
         # verify category exists
         c = await Category.get(subcategory_in.get("categoryId"))
         if not c:
             raise HTTPException(status_code=404, detail="Category not found")
         s.category_id = subcategory_in.get("categoryId")
     from datetime import timezone
+
     s.updated_at = datetime.now(timezone.utc)
     await s.save()
     return {
         "id": str(s.id),
         "name": s.name,
         "description": s.description,
-        "categoryId": s.category_id,
+        "categoryIds": s.category_ids or ([s.category_id] if s.category_id else []),
     }
 
 
 @router.delete("/{subcategory_id}")
-async def delete_subcategory(
-    subcategory_id: str = Path(...)
-):
+async def delete_subcategory(subcategory_id: str = Path(...)):
     s = await Subcategory.get(subcategory_id)
     if not s:
         raise HTTPException(status_code=404, detail=SUBCATEGORY_NOT_FOUND_MSG)
     await s.delete()
     return {"ok": True}
+
+
+@router.get("/by-category/{category_id}", response_model=List[dict])
+async def get_subcategories_by_category(
+    category_id: str = Path(...),
+    skip: int = 0,
+    limit: int = 50,
+    search: Optional[str] = None,
+):
+    # reuse existing verification and query logic to return same shape
+    await verify_category_exists(category_id)
+    docs = (
+        await Subcategory.find_many(
+            {"$or": [{"category_id": category_id}, {"category_ids": category_id}]}
+        )
+        .skip(skip)
+        .limit(limit)
+        .to_list()
+    )
+
+    if search:
+        docs = [d for d in docs if search.lower() in (d.name or "").lower()]
+
+    return [
+        {
+            "id": str(r.id),
+            "name": r.name,
+            "description": r.description,
+            "categoryIds": r.category_ids or ([r.category_id] if r.category_id else []),
+        }
+        for r in docs
+    ]

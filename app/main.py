@@ -17,6 +17,7 @@ from .routes.products import router as products_router
 from .models import Category, Subcategory, Product, User, MacroCategory
 from .routes.auth import router as auth_router
 from .routes.macro_categories import router as macro_categories_router
+from .routes.uploads import router as uploads_router
 
 MONGO_URI = os.getenv("MONGO_URI")
 # Strip surrounding quotes if present in the .env file
@@ -63,6 +64,7 @@ app.include_router(
     subcategories_router, prefix="/subcategories", tags=["subcategories"]
 )
 app.include_router(products_router, prefix="/products", tags=["products"])
+app.include_router(uploads_router, prefix="/uploads", tags=["uploads"])
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 
 

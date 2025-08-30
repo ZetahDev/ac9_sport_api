@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, EmailStr
 from datetime import timedelta, datetime, timezone
-from typing import Optional
+from typing import Optional, Annotated
 
 from ..models import User
 from ..core.security import hash_password, verify_password, create_access_token
@@ -33,7 +33,16 @@ class LoginIn(BaseModel):
 
 
 class UpdateProfileIn(BaseModel):
+    # Allow partial updates: any of these may be omitted
     email: Optional[EmailStr] = None
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zipCode: Optional[str] = None
+    country: Optional[str] = None
 
 
 class ChangePasswordIn(BaseModel):
@@ -104,7 +113,16 @@ class LoginIn(BaseModel):
 
 
 class UpdateProfileIn(BaseModel):
+    # Allow partial updates: any of these may be omitted
     email: Optional[EmailStr] = None
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zipCode: Optional[str] = None
+    country: Optional[str] = None
 
 
 class ChangePasswordIn(BaseModel):
@@ -152,6 +170,14 @@ async def me(current_user: User = Depends(get_current_user)):
         "email": current_user.email,
         "id": str(current_user.id),
         "is_superuser": current_user.is_superuser,
+        "firstName": getattr(current_user, "first_name", None),
+        "lastName": getattr(current_user, "last_name", None),
+        "phone": getattr(current_user, "phone", None),
+        "address": getattr(current_user, "address", None),
+        "city": getattr(current_user, "city", None),
+        "state": getattr(current_user, "state", None),
+        "zipCode": getattr(current_user, "zip_code", None),
+        "country": getattr(current_user, "country", None),
     }
 
 
@@ -164,15 +190,20 @@ async def users_me_profile(current_user: User = Depends(get_current_user)):
     return {
         "email": current_user.email,
         "id": str(current_user.id),
-        "fullName": None,
-        "firstName": None,
-        "lastName": None,
-        "phone": None,
-        "address": None,
-        "city": None,
-        "state": None,
-        "zipCode": None,
-        "country": None,
+        "fullName": (
+            (getattr(current_user, "first_name", "") or "")
+            + " "
+            + (getattr(current_user, "last_name", "") or "")
+        ).strip()
+        or None,
+        "firstName": getattr(current_user, "first_name", None),
+        "lastName": getattr(current_user, "last_name", None),
+        "phone": getattr(current_user, "phone", None),
+        "address": getattr(current_user, "address", None),
+        "city": getattr(current_user, "city", None),
+        "state": getattr(current_user, "state", None),
+        "zipCode": getattr(current_user, "zip_code", None),
+        "country": getattr(current_user, "country", None),
     }
 
 
@@ -205,7 +236,8 @@ async def users_me_checkout_info(current_user: User = Depends(get_current_user))
 
 @router.put("/me")
 async def update_me(
-    data: UpdateProfileIn, current_user: User = Depends(get_current_user)
+    data: UpdateProfileIn,
+    current_user: Annotated[Optional[User], Depends(get_current_user)] = None,
 ):
     if not current_user:
         raise HTTPException(status_code=401, detail=NOT_AUTHENTICATED)
@@ -220,18 +252,48 @@ async def update_me(
             raise HTTPException(status_code=400, detail="Email already in use")
         current_user.email = data.email
 
+    # Map camelCase input fields to model snake_case attributes
+    field_map = {
+        "firstName": "first_name",
+        "lastName": "last_name",
+        "phone": "phone",
+        "address": "address",
+        "city": "city",
+        "state": "state",
+        "zipCode": "zip_code",
+        "country": "country",
+    }
+
+    # Apply partial updates only for fields explicitly provided
+    for input_field, model_field in field_map.items():
+        if getattr(data, input_field, None) is not None:
+            setattr(current_user, model_field, getattr(data, input_field))
+
     current_user.updated_at = datetime.now(tz=timezone.utc)
     # Some test fakes use simple objects without save(); call save only when present
     if hasattr(current_user, "save"):
         saved = current_user.save()
         if inspect.isawaitable(saved):
             await saved
-    return {"email": current_user.email, "id": str(current_user.id)}
+    # Return an extended profile payload to reflect updated fields
+    return {
+        "email": current_user.email,
+        "id": str(current_user.id),
+        "firstName": getattr(current_user, "first_name", None),
+        "lastName": getattr(current_user, "last_name", None),
+        "phone": getattr(current_user, "phone", None),
+        "address": getattr(current_user, "address", None),
+        "city": getattr(current_user, "city", None),
+        "state": getattr(current_user, "state", None),
+        "zipCode": getattr(current_user, "zip_code", None),
+        "country": getattr(current_user, "country", None),
+    }
 
 
 @router.post("/change-password")
 async def change_password(
-    data: ChangePasswordIn, current_user: User = Depends(get_current_user)
+    data: ChangePasswordIn,
+    current_user: Annotated[Optional[User], Depends(get_current_user)] = None,
 ):
     if not current_user:
         raise HTTPException(status_code=401, detail=NOT_AUTHENTICATED)

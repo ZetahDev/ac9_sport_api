@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Any
 from beanie import Document, Indexed
 from pydantic import BaseModel, Field
 from datetime import datetime, timezone
@@ -34,6 +34,7 @@ class Subcategory(Document):
     name: str
     description: Optional[str] = None
     category_id: Optional[str] = None
+    category_ids: Optional[List[str]] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
@@ -54,7 +55,7 @@ class Product(Document):
     createdAt: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     updatedAt: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     subcategoryId: Optional[str] = None
-    stockBySize: Optional[dict] = None
+    stockBySize: Optional[Any] = None
     categories: Optional[List[dict]] = None
 
     class Settings:
@@ -64,6 +65,15 @@ class Product(Document):
 class User(Document):
     email: str
     password_hash: str
+    # Profile fields (nullable / optional)
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    country: Optional[str] = None
     is_active: bool = True
     is_superuser: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))

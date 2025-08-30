@@ -46,7 +46,12 @@ async def create_category(category_in: dict, _=Depends(get_current_active_superu
     c = Category(
         name=category_in.get("name"),
         description=category_in.get("description"),
-        macro_category_id=category_in.get("macroCategoryId"),
+        # Accept both camelCase and snake_case keys from clients
+        macro_category_id=(
+            category_in.get("macroCategoryId")
+            if category_in.get("macroCategoryId") is not None
+            else category_in.get("macro_category_id")
+        ),
     )
     await c.insert()
     logger.info(
@@ -95,8 +100,13 @@ async def update_category(
         c.name = category_in.get("name")
     if "description" in category_in:
         c.description = category_in.get("description")
-    if "macroCategoryId" in category_in:
-        c.macro_category_id = category_in.get("macroCategoryId")
+    # Allow updating macro assignment using either camelCase or snake_case
+    if "macroCategoryId" in category_in or "macro_category_id" in category_in:
+        c.macro_category_id = (
+            category_in.get("macroCategoryId")
+            if category_in.get("macroCategoryId") is not None
+            else category_in.get("macro_category_id")
+        )
     if "image" in category_in:
         # store images in a separate field if desired; categories currently have only name/description/macro
         setattr(c, "image", category_in.get("image"))
