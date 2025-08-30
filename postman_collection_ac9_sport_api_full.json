@@ -1,16 +1,17 @@
 {
   "info": {
     "name": "ac9_sport_api - Full API",
-    "description": "Full Postman collection with auth and CRUD for categories, subcategories and products.",
+    "description": "Complete Postman collection generated from app/routes (auth, categories, macro-categories, subcategories, products, uploads).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:8000", "type": "string" },
     { "key": "token", "value": "", "type": "string" },
     { "key": "categoryId", "value": "", "type": "string" },
     { "key": "subcategoryId", "value": "", "type": "string" },
-    { "key": "productId", "value": "", "type": "string" }
+    { "key": "productId", "value": "", "type": "string" },
+    { "key": "macroId", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -31,13 +32,30 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "register"]
             }
+          }
+        },
+        {
+          "name": "Token (/token)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"pwd123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "token"]
+            }
           },
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });"
+                  "var json = pm.response.json(); if (json && json.access_token) pm.environment.set('token', json.access_token);"
                 ],
                 "type": "text/javascript"
               }
@@ -45,7 +63,7 @@
           ]
         },
         {
-          "name": "Login",
+          "name": "Login alias (/login)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -59,23 +77,10 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "login"]
             }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "var json = pm.response.json();",
-                  "if (json && json.access_token) { pm.environment.set('token', json.access_token); pm.test('saved token', function(){ pm.expect(json.access_token).to.be.a('string'); }); }"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
+          }
         },
         {
-          "name": "Me",
+          "name": "Me (/me)",
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
@@ -84,20 +89,96 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "me"]
             }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('status is 200', function () { pm.response.to.have.status(200); });",
-                  "var body = pm.response.json();",
-                  "pm.test('contains email', function(){ pm.expect(body).to.have.property('email'); });"
-                ],
-                "type": "text/javascript"
-              }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth Compatibility",
+      "item": [
+        {
+          "name": "GET users/me/profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/users/me/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users", "me", "profile"]
             }
-          ]
+          }
+        },
+        {
+          "name": "PUT users/me/profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"new@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/users/me/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users", "me", "profile"]
+            }
+          }
+        },
+        {
+          "name": "GET users/me/checkout-info",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/users/me/checkout-info",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users", "me", "checkout-info"]
+            }
+          }
+        },
+        {
+          "name": "PUT /me (update)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Andres\",\n  \"lastName\": \"Castro\",\n  \"phone\": \"3173152913\",\n  \"address\": \"Cra 11n # 36 a 67\",\n  \"city\": \"Cartago\",\n  \"state\": \"Valle Del Cauca\",\n  \"zipCode\": \"050022\",\n  \"country\": \"Colombia\",\n  \"email\": \"andres@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "POST change-password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"old_password\": \"old\",\n  \"new_password\": \"new\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/change-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "change-password"]
+            }
+          }
         }
       ]
     },
@@ -114,83 +195,204 @@
               "path": ["categories"]
             }
           }
-        }
-      ]
-    },
-    {
-      "name": "Create category",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Authorization", "value": "Bearer {{token}}" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"New Category\",\n  \"description\": \"desc\",\n  \"macroCategoryId\": null\n}",
-          "options": { "raw": { "language": "json" } }
         },
-        "url": {
-          "raw": "{{baseUrl}}/categories",
-          "host": ["{{baseUrl}}"],
-          "path": ["categories"]
-        }
-      },
-      "event": [
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "var json = pm.response.json(); if (json && json.id) pm.environment.set('categoryId', json.id);",
-              "pm.test('created', function(){ pm.response.to.have.status(200); });"
+          "name": "Create category",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
-            "type": "text/javascript"
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Category\",\n  \"description\": \"desc\",\n  \"macroCategoryId\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories"]
+            }
+          }
+        },
+        {
+          "name": "Get category",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/categories/{{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories", "{{categoryId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Category\",\n  \"macroCategoryId\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categories/{{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories", "{{categoryId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete category",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/categories/{{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories", "{{categoryId}}"]
+            }
+          }
+        },
+        {
+          "name": "Upload category image",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "file", "type": "file" }]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categories/{{categoryId}}/upload-image",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories", "{{categoryId}}", "upload-image"]
+            }
           }
         }
       ]
     },
     {
-      "name": "Get category",
-      "request": {
-        "method": "GET",
-        "url": {
-          "raw": "{{baseUrl}}/categories/{{categoryId}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["categories", "{{categoryId}}"]
-        }
-      }
-    },
-    {
-      "name": "Update category",
-      "request": {
-        "method": "PUT",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Authorization", "value": "Bearer {{token}}" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"Updated Category\"\n}",
-          "options": { "raw": { "language": "json" } }
+      "name": "Macro-categories",
+      "item": [
+        {
+          "name": "List macro-categories",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/macro-categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["macro-categories"]
+            }
+          }
         },
-        "url": {
-          "raw": "{{baseUrl}}/categories/{{categoryId}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["categories", "{{categoryId}}"]
+        {
+          "name": "Create macro-category",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Macro\",\n  \"slug\": \"new-macro\",\n  \"description\": \"desc\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/macro-categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["macro-categories"]
+            }
+          }
+        },
+        {
+          "name": "Get macro-category",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/macro-categories/{{macroId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["macro-categories", "{{macroId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update macro-category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Macro\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/macro-categories/{{macroId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["macro-categories", "{{macroId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete macro-category",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/macro-categories/{{macroId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["macro-categories", "{{macroId}}"]
+            }
+          }
+        },
+        {
+          "name": "List categories by macro",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/macro-categories/{{macroId}}/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["macro-categories", "{{macroId}}", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Upload macro image",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "file", "type": "file" }]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/macro-categories/{{macroId}}/upload-image",
+              "host": ["{{baseUrl}}"],
+              "path": ["macro-categories", "{{macroId}}", "upload-image"]
+            }
+          }
+        },
+        {
+          "name": "Macro image GET presigned URL",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/macro-categories/{{macroId}}/image-url",
+              "host": ["{{baseUrl}}"],
+              "path": ["macro-categories", "{{macroId}}", "image-url"]
+            }
+          }
         }
-      }
-    },
-    {
-      "name": "Delete category",
-      "request": {
-        "method": "DELETE",
-        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-        "url": {
-          "raw": "{{baseUrl}}/categories/{{categoryId}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["categories", "{{categoryId}}"]
-        }
-      }
+      ]
     },
     {
       "name": "Subcategories",
@@ -224,19 +426,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["subcategories"]
             }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var json = pm.response.json(); if (json && json.id) pm.environment.set('subcategoryId', json.id);",
-                  "pm.test('created', function(){ pm.response.to.have.status(200); });"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
+          }
         },
         {
           "name": "Get subcategory",
@@ -298,7 +488,7 @@
           }
         },
         {
-          "name": "Create product (multipart/form-data)",
+          "name": "Create product (multipart)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
@@ -324,19 +514,27 @@
               "host": ["{{baseUrl}}"],
               "path": ["products"]
             }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var json = pm.response.json(); if (json && json.id) pm.environment.set('productId', json.id);",
-                  "pm.test('created', function(){ pm.response.to.have.status(200); });"
-                ],
-                "type": "text/javascript"
-              }
+          }
+        },
+        {
+          "name": "Create product (presign)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New\",\n  \"price\": 10.0,\n  \"sizes\": [],\n  \"colors\": [],\n  \"categoryIds\": [],\n  \"images\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products/presign-create",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "presign-create"]
             }
-          ]
+          }
         },
         {
           "name": "Get product",
@@ -378,6 +576,31 @@
               "raw": "{{baseUrl}}/products/{{productId}}",
               "host": ["{{baseUrl}}"],
               "path": ["products", "{{productId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Uploads",
+      "item": [
+        {
+          "name": "Presign upload (GCS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"macros/1234/asset.jpg\",\n  \"content_type\": \"image/jpeg\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/presign",
+              "host": ["{{baseUrl}}"],
+              "path": ["presign"]
             }
           }
         }
