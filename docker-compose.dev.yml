@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: ac9_sport_api_dev
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Mount code for live-editing and mount a host folder for storage
+      - ./:/app:rw
+      - ./app/storage:/app/app/storage
+    command: uvicorn ac9_sport_api.app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+volumes:
+  # Define named volume if someone prefers it instead of host mount
+  ac9_api_storage:
+    driver: local

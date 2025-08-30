@@ -8,3 +8,7 @@ python-dotenv
 Pillow
 dnspython
 pytest
+aiofiles
+passlib[bcrypt]
+python-jose[cryptography]
+google-cloud-storage

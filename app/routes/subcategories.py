@@ -2,8 +2,12 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from ..models import Subcategory, Category
 from ..deps import get_current_active_superuser
+from fastapi import Path, Body
+from datetime import datetime
 
 router = APIRouter()
+
+SUBCATEGORY_NOT_FOUND_MSG = "Subcategory not found"
 
 
 async def verify_category_exists(category_id: str):
@@ -72,3 +76,58 @@ async def create_subcategory(
         "description": s.description,
         "categoryId": s.category_id,
     }
+
+
+@router.get("/{subcategory_id}", response_model=dict)
+async def get_subcategory(
+    subcategory_id: str = Path(...),
+):
+    s = await Subcategory.get(subcategory_id)
+    if not s:
+        raise HTTPException(status_code=404, detail=SUBCATEGORY_NOT_FOUND_MSG)
+    return {
+        "id": str(s.id),
+        "name": s.name,
+        "description": s.description,
+        "categoryId": s.category_id,
+    }
+
+
+@router.put("/{subcategory_id}", response_model=dict)
+async def update_subcategory(
+    subcategory_id: str = Path(...),
+    subcategory_in: dict = Body(...)
+):
+    s = await Subcategory.get(subcategory_id)
+    if not s:
+        raise HTTPException(status_code=404, detail=SUBCATEGORY_NOT_FOUND_MSG)
+    if "name" in subcategory_in:
+        s.name = subcategory_in.get("name")
+    if "description" in subcategory_in:
+        s.description = subcategory_in.get("description")
+    if "categoryId" in subcategory_in:
+        # verify category exists
+        c = await Category.get(subcategory_in.get("categoryId"))
+        if not c:
+            raise HTTPException(status_code=404, detail="Category not found")
+        s.category_id = subcategory_in.get("categoryId")
+    from datetime import timezone
+    s.updated_at = datetime.now(timezone.utc)
+    await s.save()
+    return {
+        "id": str(s.id),
+        "name": s.name,
+        "description": s.description,
+        "categoryId": s.category_id,
+    }
+
+
+@router.delete("/{subcategory_id}")
+async def delete_subcategory(
+    subcategory_id: str = Path(...)
+):
+    s = await Subcategory.get(subcategory_id)
+    if not s:
+        raise HTTPException(status_code=404, detail=SUBCATEGORY_NOT_FOUND_MSG)
+    await s.delete()
+    return {"ok": True}
