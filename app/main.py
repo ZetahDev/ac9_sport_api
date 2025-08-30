@@ -44,14 +44,29 @@ app.mount("/storage", StaticFiles(directory=STORAGE_DIR), name="storage")
 @app.on_event("startup")
 async def on_startup():
     # Initialize Motor client and Beanie
-    client = AsyncIOMotorClient(MONGO_URI)
-    # If the connection string doesn't include a default database name (common with Atlas),
-    # use the explicit DB name from MONGO_DB or fallback to 'ac9_sport'.
-    db = client.get_database(DB_NAME)
-    await init_beanie(
-        database=db,
-        document_models=[Category, Subcategory, Product, User, MacroCategory],
-    )
+    # Initialize Motor client and Beanie, but don't crash the whole app if DB is unreachable.
+    try:
+        if not MONGO_URI:
+            logger.warning(
+                "MONGO_URI not set; skipping database initialization on startup."
+            )
+            return
+
+        client = AsyncIOMotorClient(MONGO_URI)
+        # If the connection string doesn't include a default database name (common with Atlas),
+        # use the explicit DB name from MONGO_DB or fallback to 'ac9_sport'.
+        db = client.get_database(DB_NAME)
+        await init_beanie(
+            database=db,
+            document_models=[Category, Subcategory, Product, User, MacroCategory],
+        )
+        # Mark successful connection
+        app.state.db_connected = True
+        logger.info("Connected to MongoDB and initialized Beanie models.")
+    except Exception as e:
+        # Don't raise; log the detailed error so deploy logs show the root cause (TLS, network, auth)
+        app.state.db_connected = False
+        logger.exception("Failed to initialize MongoDB / Beanie on startup: %s", e)
 
 
 # Include routers
