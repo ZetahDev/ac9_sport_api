@@ -12,3 +12,4 @@ aiofiles
 passlib[bcrypt]
 python-jose[cryptography]
 boto3
+certifi

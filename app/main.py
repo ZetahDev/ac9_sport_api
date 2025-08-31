@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from motor.motor_asyncio import AsyncIOMotorClient
+import certifi
 from beanie import init_beanie
 from fastapi.staticfiles import StaticFiles
 
@@ -56,7 +57,10 @@ async def on_startup():
             )
             return
 
-        client = AsyncIOMotorClient(MONGO_URI)
+        # Use certifi's CA bundle to ensure TLS works in minimal container images
+        # which may lack system CA certificates (common cause of TLS handshake errors).
+        client = AsyncIOMotorClient(MONGO_URI, tls=True, tlsCAFile=certifi.where())
+
         # If the connection string doesn't include a default database name (common with Atlas),
         # use the explicit DB name from MONGO_DB or fallback to 'ac9_sport'.
         db = client.get_database(DB_NAME)
