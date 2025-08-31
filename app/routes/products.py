@@ -444,6 +444,9 @@ async def read_featured_products(skip: int = 0, limit: int = 100) -> Any:
                 )
                 continue
         return result
+    except HTTPException:
+        # Let FastAPI handle HTTPExceptions (like the 503 we raise above)
+        raise
     except Exception as exc:
         logger.exception("Error fetching featured products: %s", exc)
         raise HTTPException(status_code=500, detail="Internal server error")

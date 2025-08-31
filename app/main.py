@@ -96,6 +96,13 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/health/db")
+def health_db():
+    """Return DB initialization status for monitoring."""
+    # app.state.db_connected is set to True after successful init_beanie
+    return {"db_connected": bool(getattr(app.state, "db_connected", False))}
+
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
