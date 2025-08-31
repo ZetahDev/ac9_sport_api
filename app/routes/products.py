@@ -356,6 +356,48 @@ async def read_products(
     return result
 
 
+@router.get("/featured", response_model=List[dict])
+async def read_featured_products(skip: int = 0, limit: int = 100) -> Any:
+    """Return featured products with the same transformation as the main listing.
+    Defensive: never raise unhandled exceptions; convert unexpected representations
+    into safe defaults so frontend receives a stable JSON array.
+    """
+    try:
+        docs = (
+            await Product.find_many({"isActive": True, "isFeatured": True})
+            .skip(skip)
+            .limit(limit)
+            .to_list()
+        )
+
+        result = []
+        for p in docs:
+            try:
+                stock_list = _normalize_product_stock(p.stockBySize or {})
+                result.append(
+                    {
+                        "id": str(p.id),
+                        "name": p.name,
+                        "price": p.price,
+                        "sizes": p.sizes,
+                        "stockBySize": stock_list,
+                        "categories": await _resolve_product_categories(p),
+                        "subcategory": await _resolve_product_subcategory(p),
+                        "images": [resolve_public_image_url(i) for i in (p.images or [])],
+                        "isActive": p.isActive,
+                        "isFeatured": p.isFeatured,
+                    }
+                )
+            except Exception:
+                # Skip single bad document but keep processing others
+                logger.exception("Error serializing featured product: %s", getattr(p, 'id', None))
+                continue
+        return result
+    except Exception as exc:
+        logger.exception("Error fetching featured products: %s", exc)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.post("/", response_model=dict)
 async def create_product(
     name: str = Form(...),

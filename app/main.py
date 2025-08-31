@@ -107,7 +107,15 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
         "method": request.method,
     }
     logger.warning("HTTP error: %s %s -> %s", request.method, request.url.path, exc)
-    return JSONResponse(status_code=exc.status_code, content=content)
+    # Ensure CORS headers are present even for error responses (defensive for proxies)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=content,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
+        },
+    )
 
 
 @app.exception_handler(Exception)
@@ -124,4 +132,13 @@ async def generic_exception_handler(request: Request, exc: Exception):
         "path": str(request.url.path),
         "method": request.method,
     }
-    return JSONResponse(status_code=500, content=content)
+    # Add CORS headers to the catch-all error response so browsers don't drop useful
+    # error payloads due to missing CORS when the middleware isn't applied.
+    return JSONResponse(
+        status_code=500,
+        content=content,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
+        },
+    )
