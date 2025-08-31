@@ -8,7 +8,7 @@ import certifi
 from contextlib import asynccontextmanager
 from beanie import init_beanie
 from fastapi.staticfiles import StaticFiles
-from fastapi import Request
+from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 import logging
@@ -17,13 +17,8 @@ package_root = Path(__file__).resolve().parents[1]
 dotenv_path = package_root / ".env"
 load_dotenv(dotenv_path=dotenv_path)
 
-from .routes.categories import router as categories_router
-from .routes.subcategories import router as subcategories_router
-from .routes.products import router as products_router
 from .models import Category, Subcategory, Product, User, MacroCategory
-from .routes.auth import router as auth_router
-from .routes.macro_categories import router as macro_categories_router
-from .routes.uploads import router as uploads_router
+from .router import register_routes
 
 MONGO_URI = os.getenv("MONGO_URI")
 if MONGO_URI:
@@ -115,21 +110,7 @@ async def on_startup():
         logger.exception("Failed to initialize MongoDB / Beanie on startup: %s", e)
 
 
-app.include_router(categories_router, prefix="/categories", tags=["categories"])
-app.include_router(
-    macro_categories_router, prefix="/macro-categories", tags=["macro-categories"]
-)
-app.include_router(
-    subcategories_router, prefix="/subcategories", tags=["subcategories"]
-)
-app.include_router(products_router, prefix="/products", tags=["products"])
-app.include_router(uploads_router, prefix="/uploads", tags=["uploads"])
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+register_routes(app)
 
 
 logger = logging.getLogger("ac9_sport_api")
