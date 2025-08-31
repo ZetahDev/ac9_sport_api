@@ -75,8 +75,8 @@ app = FastAPI(title="ac9_sport_api", lifespan=lifespan)
 
 origins = [
     "https://www.ac9sport.com",
-    "https://ac9sport.com",         
-    "http://localhost:3000",      
+    "https://ac9sport.com",
+    "http://localhost:3000",
 ]
 
 app.add_middleware(
@@ -115,7 +115,6 @@ async def on_startup():
         logger.exception("Failed to initialize MongoDB / Beanie on startup: %s", e)
 
 
-
 app.include_router(categories_router, prefix="/categories", tags=["categories"])
 app.include_router(
     macro_categories_router, prefix="/macro-categories", tags=["macro-categories"]
@@ -135,6 +134,7 @@ def health():
 
 logger = logging.getLogger("ac9_sport_api")
 
+
 @app.exception_handler(StarletteHTTPException)
 async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
     content = {
@@ -148,6 +148,7 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
         status_code=exc.status_code,
         content=content,
     )
+
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
