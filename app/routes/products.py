@@ -398,12 +398,24 @@ async def read_featured_products(skip: int = 0, limit: int = 100) -> Any:
     into safe defaults so frontend receives a stable JSON array.
     """
     try:
-        docs = (
-            await Product.find_many({"isActive": True, "isFeatured": True})
-            .skip(skip)
-            .limit(limit)
-            .to_list()
-        )
+        # Defensive: if the app hasn't initialized the DB, return empty list or surface 503
+        # We can't import 'app' directly here due to circular imports; rely on request.app at runtime
+        # Fallback: check Product.get_settings indirectly by catching the specific exception
+        try:
+            docs = (
+                await Product.find_many({"isActive": True, "isFeatured": True})
+                .skip(skip)
+                .limit(limit)
+                .to_list()
+            )
+        except Exception as db_exc:
+            # This will capture CollectionWasNotInitialized and other DB errors
+            logger.exception(
+                "Database error while fetching featured products: %s", db_exc
+            )
+            raise HTTPException(
+                status_code=503, detail="Service temporarily unavailable"
+            )
 
         result = []
         for p in docs:
