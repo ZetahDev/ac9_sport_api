@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 from motor.motor_asyncio import AsyncIOMotorClient
 import certifi
-import ssl
+from contextlib import asynccontextmanager
 from beanie import init_beanie
 from fastapi.staticfiles import StaticFiles
 
@@ -27,11 +27,52 @@ if MONGO_URI:
     MONGO_URI = MONGO_URI.strip().strip('"').strip("'")
 DB_NAME = os.getenv("MONGO_DB", "ac9_sport")
 
-app = FastAPI(title="ac9_sport_api")
 
-# Mark DB as not connected until startup completes. This prevents request handlers
-# from assuming the DB is ready when the attribute hasn't been set yet.
-app.state.db_connected = False
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Mark DB as not connected until startup completes. This prevents request handlers
+    # from assuming the DB is ready when the attribute hasn't been set yet.
+    app.state.db_connected = False
+
+    # Startup: attempt to initialize Motor client and Beanie, but don't crash the whole app
+    try:
+        if not MONGO_URI:
+            logging.getLogger("ac9_sport_api").warning(
+                "MONGO_URI not set; skipping database initialization on startup."
+            )
+        else:
+            client = AsyncIOMotorClient(MONGO_URI, tls=True, tlsCAFile=certifi.where())
+            app.state.mongo_client = client
+            db = client.get_database(DB_NAME)
+            await init_beanie(
+                database=db,
+                document_models=[Category, Subcategory, Product, User, MacroCategory],
+            )
+            app.state.db_connected = True
+            logging.getLogger("ac9_sport_api").info(
+                "Connected to MongoDB and initialized Beanie models."
+            )
+    except Exception as e:
+        app.state.db_connected = False
+        logging.getLogger("ac9_sport_api").exception(
+            "Failed to initialize MongoDB / Beanie on startup: %s", e
+        )
+
+    try:
+        yield
+    finally:
+        # Shutdown: close motor client if present
+        client = getattr(app.state, "mongo_client", None)
+        if client:
+            try:
+                client.close()
+            except Exception:
+                logging.getLogger("ac9_sport_api").exception(
+                    "Error closing Mongo client on shutdown"
+                )
+
+
+app = FastAPI(title="ac9_sport_api", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -95,32 +136,6 @@ app.include_router(auth_router, prefix="/auth", tags=["auth"])
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
-@app.get("/health/db")
-def health_db():
-    """Return DB initialization status for monitoring."""
-    # app.state.db_connected is set to True after successful init_beanie
-    return {"db_connected": bool(getattr(app.state, "db_connected", False))}
-
-
-@app.get("/debug/tls")
-def debug_tls():
-    """Return runtime info useful to diagnose TLS/CA issues in container/runtime.
-
-    This intentionally does NOT return any secrets. It helps confirm whether
-    the running image has access to the certifi bundle and what OpenSSL version
-    the Python runtime is using.
-    """
-    try:
-        ca_path = certifi.where()
-    except Exception as e:
-        ca_path = f"error: {e}"
-    try:
-        openssl = ssl.OPENSSL_VERSION
-    except Exception as e:
-        openssl = f"error: {e}"
-    return {"certifi": ca_path, "openssl": openssl}
 
 
 from fastapi import Request
