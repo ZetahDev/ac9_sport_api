@@ -27,6 +27,10 @@ DB_NAME = os.getenv("MONGO_DB", "ac9_sport")
 
 app = FastAPI(title="ac9_sport_api")
 
+# Mark DB as not connected until startup completes. This prevents request handlers
+# from assuming the DB is ready when the attribute hasn't been set yet.
+app.state.db_connected = False
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

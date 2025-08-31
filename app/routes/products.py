@@ -319,41 +319,76 @@ async def _resolve_product_subcategory(p) -> Optional[dict]:
 
 @router.get("/", response_model=List[dict])
 async def read_products(
-    skip: int = 0, limit: int = 100, search: Optional[str] = None
+    skip: int = 0,
+    limit: int = 100,
+    search: Optional[str] = None,
+    request: Request = None,
 ) -> Any:
-    # Fetch documents with minimal branching and keep transformation logic delegated
-    if search:
-        docs = await Product.find_many({}).to_list()
-        docs = [
-            d for d in docs if search.lower() in (d.name or "").lower() and d.isActive
-        ]
-        docs = docs[skip : skip + limit]
-    else:
-        docs = (
-            await Product.find_many({"isActive": True})
-            .skip(skip)
-            .limit(limit)
-            .to_list()
-        )
+    # Defensive: if DB not initialized on startup, return 503 so callers know it's a server-side issue.
+    try:
+        if request is not None and not getattr(request.app.state, "db_connected", True):
+            logger.warning("Attempt to access products while DB not connected")
+            raise HTTPException(
+                status_code=503, detail="Service temporarily unavailable"
+            )
 
-    result = []
-    for p in docs:
-        stock_list = _normalize_product_stock(p.stockBySize or {})
-        result.append(
-            {
-                "id": str(p.id),
-                "name": p.name,
-                "price": p.price,
-                "sizes": p.sizes,
-                "stockBySize": stock_list,
-                "categories": await _resolve_product_categories(p),
-                "subcategory": await _resolve_product_subcategory(p),
-                "images": [resolve_public_image_url(i) for i in (p.images or [])],
-                "isActive": p.isActive,
-                "isFeatured": p.isFeatured,
-            }
-        )
-    return result
+        # Fetch documents; errors here indicate DB connectivity or query issues.
+        try:
+            if search:
+                docs = await Product.find_many({}).to_list()
+                docs = [
+                    d
+                    for d in docs
+                    if search.lower() in (d.name or "").lower() and d.isActive
+                ]
+                docs = docs[skip : skip + limit]
+            else:
+                docs = (
+                    await Product.find_many({"isActive": True})
+                    .skip(skip)
+                    .limit(limit)
+                    .to_list()
+                )
+        except Exception as db_exc:
+            logger.exception("Database error while fetching products: %s", db_exc)
+            # Surface a 500 to the caller with minimal details
+            raise HTTPException(status_code=500, detail="Internal Server Error")
+
+        result = []
+        for p in docs:
+            try:
+                stock_list = _normalize_product_stock(p.stockBySize or {})
+                result.append(
+                    {
+                        "id": str(p.id),
+                        "name": p.name,
+                        "price": p.price,
+                        "sizes": p.sizes,
+                        "stockBySize": stock_list,
+                        "categories": await _resolve_product_categories(p),
+                        "subcategory": await _resolve_product_subcategory(p),
+                        "images": [
+                            resolve_public_image_url(i) for i in (p.images or [])
+                        ],
+                        "isActive": p.isActive,
+                        "isFeatured": p.isFeatured,
+                    }
+                )
+            except Exception as item_exc:
+                # Skip individual bad documents but keep serving the rest
+                logger.exception(
+                    "Skipping product during serialization (id=%s): %s",
+                    getattr(p, "id", None),
+                    item_exc,
+                )
+                continue
+        return result
+    except HTTPException:
+        # Re-raise HTTPExceptions so FastAPI handles them unchanged
+        raise
+    except Exception as exc:
+        logger.exception("Unhandled error in read_products: %s", exc)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
 @router.get("/featured", response_model=List[dict])
@@ -383,14 +418,18 @@ async def read_featured_products(skip: int = 0, limit: int = 100) -> Any:
                         "stockBySize": stock_list,
                         "categories": await _resolve_product_categories(p),
                         "subcategory": await _resolve_product_subcategory(p),
-                        "images": [resolve_public_image_url(i) for i in (p.images or [])],
+                        "images": [
+                            resolve_public_image_url(i) for i in (p.images or [])
+                        ],
                         "isActive": p.isActive,
                         "isFeatured": p.isFeatured,
                     }
                 )
             except Exception:
                 # Skip single bad document but keep processing others
-                logger.exception("Error serializing featured product: %s", getattr(p, 'id', None))
+                logger.exception(
+                    "Error serializing featured product: %s", getattr(p, "id", None)
+                )
                 continue
         return result
     except Exception as exc:
@@ -832,6 +871,7 @@ def _update_categories(p, product_in):
     incoming = product_in.get("categoryIds") or []
     incoming = _parse_category_ids(incoming)
     p.categories = [{"categoryId": cid} for cid in incoming if cid]
+
 
 def _parse_category_ids(incoming):
     # Helper to parse categoryIds from various formats
