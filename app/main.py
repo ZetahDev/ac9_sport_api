@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 from motor.motor_asyncio import AsyncIOMotorClient
 import certifi
+import ssl
 from beanie import init_beanie
 from fastapi.staticfiles import StaticFiles
 
@@ -101,6 +102,25 @@ def health_db():
     """Return DB initialization status for monitoring."""
     # app.state.db_connected is set to True after successful init_beanie
     return {"db_connected": bool(getattr(app.state, "db_connected", False))}
+
+
+@app.get("/debug/tls")
+def debug_tls():
+    """Return runtime info useful to diagnose TLS/CA issues in container/runtime.
+
+    This intentionally does NOT return any secrets. It helps confirm whether
+    the running image has access to the certifi bundle and what OpenSSL version
+    the Python runtime is using.
+    """
+    try:
+        ca_path = certifi.where()
+    except Exception as e:
+        ca_path = f"error: {e}"
+    try:
+        openssl = ssl.OPENSSL_VERSION
+    except Exception as e:
+        openssl = f"error: {e}"
+    return {"certifi": ca_path, "openssl": openssl}
 
 
 from fastapi import Request
