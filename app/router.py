@@ -1,4 +1,6 @@
 from fastapi import FastAPI, Response
+from fastapi.responses import FileResponse
+from pathlib import Path
 
 from .routes.categories import router as categories_router
 from .routes.subcategories import router as subcategories_router
@@ -48,3 +50,34 @@ def register_routes(app: FastAPI) -> None:
         preflight can succeed and lets CORSMiddleware provide the CORS headers.
         """
         return Response(status_code=204)
+
+    # Favicon and Web App Manifest routes
+    @app.get("/favicon.ico", include_in_schema=False)
+    @app.head("/favicon.ico", include_in_schema=False)
+    async def favicon():
+        """Serve favicon.ico from static directory."""
+        static_dir = Path(__file__).resolve().parents[1] / "static"
+        favicon_path = static_dir / "favicon.ico"
+        if favicon_path.exists():
+            return FileResponse(favicon_path, media_type="image/x-icon")
+        return Response(status_code=404)
+
+    @app.get("/site.webmanifest", include_in_schema=False)
+    @app.head("/site.webmanifest", include_in_schema=False)
+    async def webmanifest():
+        """Serve web app manifest file."""
+        static_dir = Path(__file__).resolve().parents[1] / "static"
+        manifest_path = static_dir / "site.webmanifest"
+        if manifest_path.exists():
+            return FileResponse(manifest_path, media_type="application/manifest+json")
+        return Response(status_code=404)
+
+    @app.get("/manifest.json", include_in_schema=False)
+    @app.head("/manifest.json", include_in_schema=False)
+    async def manifest_json():
+        """Serve web app manifest file with alternative name."""
+        static_dir = Path(__file__).resolve().parents[1] / "static"
+        manifest_path = static_dir / "site.webmanifest"
+        if manifest_path.exists():
+            return FileResponse(manifest_path, media_type="application/manifest+json")
+        return Response(status_code=404)
