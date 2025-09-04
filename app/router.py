@@ -1,4 +1,6 @@
 from fastapi import FastAPI, Response
+from fastapi.responses import FileResponse
+from pathlib import Path
 
 from .routes.categories import router as categories_router
 from .routes.subcategories import router as subcategories_router
@@ -39,6 +41,15 @@ def register_routes(app: FastAPI) -> None:
     @app.get(f"{API_PREFIX}/health")
     def health():
         return {"status": "ok"}
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def favicon():
+        """Serve the favicon.ico file."""
+        favicon_path = Path(__file__).resolve().parents[1] / "favicon.ico"
+        if favicon_path.exists():
+            return FileResponse(favicon_path, media_type="image/x-icon")
+        else:
+            return Response(status_code=404)
 
     @app.options(f"{API_PREFIX}/auth/login")
     async def options_auth_login():
