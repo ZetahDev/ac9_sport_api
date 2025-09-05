@@ -28,12 +28,23 @@ Crea `ac9_sport_api/.env` con al menos:
 API_KEY=tu_api_key_de_admin
 MONGO_URI="PASS"
 MONGO_DB=ac9_sport
+
+# Para subida de imágenes con S3 (opcional)
+AWS_ACCESS_KEY_ID=tu_access_key_id
+AWS_SECRET_ACCESS_KEY=tu_secret_access_key
+S3_BUCKET=tu_bucket_name
+S3_REGION=us-east-1
+
+# URL base de la API para fallback local (si no hay credenciales S3)
+API_BASE_URL=https://ac9-sport-api.onrender.com
 ```
 
 Notas:
 
 - No dejes `<>` alrededor de la contraseña.
 - `MONGO_DB` se usa para seleccionar la base de datos en la que se inicializan los modelos Beanie.
+- Las credenciales AWS son **opcionales**. Si no están configuradas, el sistema usará almacenamiento local como fallback.
+- Para producción, configura las credenciales AWS S3 para almacenamiento en la nube.
 
 Instalación
 
