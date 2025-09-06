@@ -9,11 +9,15 @@ S3_REGION = os.getenv("S3_REGION")
 def _get_client():
     try:
         import boto3
+        from botocore.config import Config
     except Exception as exc:  # pragma: no cover - defensive
         raise RuntimeError(
             "boto3 is not installed. Add 'boto3' to requirements.txt"
         ) from exc
-    return boto3.client("s3", region_name=S3_REGION)
+
+    # Configure to use signature version 4
+    config = Config(signature_version="s3v4", region_name=S3_REGION)
+    return boto3.client("s3", config=config)
 
 
 def generate_presigned_upload_url(
@@ -27,14 +31,9 @@ def generate_presigned_upload_url(
     if not bucket:
         raise RuntimeError("S3_BUCKET not configured")
 
-    params = {
-        "Bucket": bucket,
-        "Key": object_name,
-        "ContentType": content_type,
-        "SignatureVersion": "s3v4",  # Force AWS4-HMAC-SHA256
-    }
+    params = {"Bucket": bucket, "Key": object_name, "ContentType": content_type}
     url = client.generate_presigned_url(
-        ClientMethod="put_object", Params=params, ExpiresIn=expires_in, HttpMethod="PUT"
+        ClientMethod="put_object", Params=params, ExpiresIn=expires_in
     )
     return url, object_name
 
