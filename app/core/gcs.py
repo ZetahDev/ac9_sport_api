@@ -3,7 +3,7 @@ from typing import Tuple
 from datetime import timedelta
 
 S3_BUCKET = os.getenv("S3_BUCKET")
-S3_REGION = os.getenv("S3_REGION")
+S3_REGION = os.getenv("S3_REGION", "us-east-2")  # Default to us-east-2 if not specified
 
 
 def _get_client():
@@ -31,9 +31,16 @@ def generate_presigned_upload_url(
     if not bucket:
         raise RuntimeError("S3_BUCKET not configured")
 
+    # Ensure we have a valid content type
+    if not content_type:
+        content_type = "application/octet-stream"
+
     params = {"Bucket": bucket, "Key": object_name, "ContentType": content_type}
     url = client.generate_presigned_url(
-        ClientMethod="put_object", Params=params, ExpiresIn=expires_in
+        ClientMethod="put_object",
+        Params=params,
+        ExpiresIn=expires_in,
+        HttpMethod="PUT",  # Explicitly set HTTP method
     )
     return url, object_name
 
