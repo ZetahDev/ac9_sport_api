@@ -27,9 +27,14 @@ def generate_presigned_upload_url(
     if not bucket:
         raise RuntimeError("S3_BUCKET not configured")
 
-    params = {"Bucket": bucket, "Key": object_name, "ContentType": content_type}
+    params = {
+        "Bucket": bucket,
+        "Key": object_name,
+        "ContentType": content_type,
+        "SignatureVersion": "s3v4",  # Force AWS4-HMAC-SHA256
+    }
     url = client.generate_presigned_url(
-        ClientMethod="put_object", Params=params, ExpiresIn=expires_in
+        ClientMethod="put_object", Params=params, ExpiresIn=expires_in, HttpMethod="PUT"
     )
     return url, object_name
 

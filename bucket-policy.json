@@ -1,0 +1,51 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyInsecureTransport",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::ac9-sport-prod",
+        "arn:aws:s3:::ac9-sport-prod/*"
+      ],
+      "Condition": {
+        "Bool": { "aws:SecureTransport": "false" }
+      }
+    },
+    {
+      "Sid": "AllowUserObjectOperations",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::557690603980:user/ac9sport-s3-user"
+      },
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
+      "Resource": [
+        "arn:aws:s3:::ac9-sport-prod/macros/*",
+        "arn:aws:s3:::ac9-sport-prod/products/*"
+      ]
+    },
+    {
+      "Sid": "AllowUserListBucket",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::557690603980:user/ac9sport-s3-user"
+      },
+      "Action": ["s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::ac9-sport-prod"],
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": ["macros/*", "products/*"]
+        }
+      }
+    },
+    {
+      "Sid": "AllowPublicRead",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": ["s3:GetObject"],
+      "Resource": ["arn:aws:s3:::ac9-sport-prod/products/*"]
+    }
+  ]
+}
