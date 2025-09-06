@@ -925,37 +925,6 @@ async def _save_product(p):
         )
 
 
-@router.put("/{product_id}/featured", response_model=dict)
-async def toggle_product_featured(
-    product_id: str = Path(...),
-    featured: bool = Body(...),
-    _=Depends(get_current_active_superuser),
-):
-    """Toggle the featured status of a specific product."""
-    p = await Product.get(product_id)
-    if not p:
-        raise HTTPException(status_code=404, detail=PRODUCT_NOT_FOUND_MSG)
-
-    p.isFeatured = featured
-    p.updatedAt = datetime.now(tz=timezone.utc)
-
-    try:
-        await p.save()
-    except Exception as exc:
-        logger.exception("Error saving product featured status: %s", exc)
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error: could not update featured status",
-        )
-
-    return {
-        "id": str(p.id),
-        "name": p.name,
-        "isFeatured": p.isFeatured,
-        "message": f"Product {'featured' if featured else 'unfeatured'} successfully",
-    }
-
-
 @router.delete("/{product_id}")
 async def delete_product(
     product_id: str = Path(...), _=Depends(get_current_active_superuser)

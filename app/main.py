@@ -72,6 +72,7 @@ origins = [
     "https://www.ac9sport.com",
     "https://ac9sport.com",
     "http://localhost:3000",
+    "https://xrfr07h4-3000.use2.devtunnels.ms"
 ]
 
 app.add_middleware(
