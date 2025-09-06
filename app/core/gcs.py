@@ -47,7 +47,12 @@ def generate_presigned_upload_url(
     if not content_type:
         content_type = "application/octet-stream"
 
-    params = {"Bucket": bucket, "Key": object_name, "ContentType": content_type}
+    # Add CORS headers to the signed URL
+    params = {
+        "Bucket": bucket,
+        "Key": object_name,
+        "ContentType": content_type,
+    }
 
     # Generate the URL with explicit parameters
     url = client.generate_presigned_url(
