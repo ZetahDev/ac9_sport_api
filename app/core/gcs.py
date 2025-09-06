@@ -3,7 +3,7 @@ from typing import Tuple
 from datetime import timedelta
 
 S3_BUCKET = os.getenv("S3_BUCKET")
-S3_REGION = os.getenv("S3_REGION", "us-east-2")  # Default to us-east-2 if not specified
+S3_REGION = os.getenv("S3_REGION", "us-east-2")
 
 
 def _get_client():
@@ -15,9 +15,21 @@ def _get_client():
             "boto3 is not installed. Add 'boto3' to requirements.txt"
         ) from exc
 
-    # Configure to use signature version 4
-    config = Config(signature_version="s3v4", region_name=S3_REGION)
-    return boto3.client("s3", config=config)
+    # Configure to use signature version 4 and force region
+    config = Config(
+        signature_version="s3v4",
+        region_name=S3_REGION,
+        s3={
+            "addressing_style": "virtual",  # Use virtual-hosted style URLs
+            "use_accelerate_endpoint": False,  # Don't use S3 acceleration
+        },
+    )
+    return boto3.client(
+        "s3",
+        config=config,
+        region_name=S3_REGION,  # Explicitly set region here too
+        endpoint_url=f"https://s3.{S3_REGION}.amazonaws.com",  # Force specific regional endpoint
+    )
 
 
 def generate_presigned_upload_url(
@@ -36,12 +48,20 @@ def generate_presigned_upload_url(
         content_type = "application/octet-stream"
 
     params = {"Bucket": bucket, "Key": object_name, "ContentType": content_type}
+
+    # Generate the URL with explicit parameters
     url = client.generate_presigned_url(
         ClientMethod="put_object",
         Params=params,
         ExpiresIn=expires_in,
-        HttpMethod="PUT",  # Explicitly set HTTP method
+        HttpMethod="PUT",
     )
+
+    # Log the URL for debugging (without sensitive parts)
+    import re
+
+    debug_url = re.sub(r"X-Amz-Signature=[^&]+", "X-Amz-Signature=REDACTED", url)
+    print(f"Debug: Generated presigned URL (sanitized): {debug_url}")
     return url, object_name
 
 
