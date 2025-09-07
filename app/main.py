@@ -87,6 +87,11 @@ STORAGE_DIR = Path(__file__).resolve().parents[1] / "storage"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/storage", StaticFiles(directory=STORAGE_DIR), name="storage")
 
+# Static assets for favicon and web app manifest
+STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
+STATIC_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 
 @app.on_event("startup")
 async def on_startup():
