@@ -88,27 +88,7 @@ STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/storage", StaticFiles(directory=STORAGE_DIR), name="storage")
 
 
-@app.on_event("startup")
-async def on_startup():
-    try:
-        if not MONGO_URI:
-            logger.warning(
-                "MONGO_URI not set; skipping database initialization on startup."
-            )
-            return
-        client = AsyncIOMotorClient(MONGO_URI, tls=True, tlsCAFile=certifi.where())
 
-        db = client.get_database(DB_NAME)
-        await init_beanie(
-            database=db,
-            document_models=[Category, Subcategory, Product, User, MacroCategory],
-        )
-
-        app.state.db_connected = True
-        logger.info("Connected to MongoDB and initialized Beanie models.")
-    except Exception as e:
-        app.state.db_connected = False
-        logger.exception("Failed to initialize MongoDB / Beanie on startup: %s", e)
 
 
 register_routes(app)
