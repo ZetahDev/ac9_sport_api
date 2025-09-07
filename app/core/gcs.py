@@ -46,7 +46,7 @@ def generate_presigned_upload_url(
     if not content_type:
         content_type = "application/octet-stream"
 
-    # Add CORS headers to the signed URL
+    # Add CORS headers to the signed URL and include necessary headers in signature
     params = {
         "Bucket": bucket,
         "Key": object_name,
@@ -59,6 +59,11 @@ def generate_presigned_upload_url(
         Params=params,
         ExpiresIn=expires_in,
         HttpMethod="PUT",
+        SignedHeaders=[
+            "content-type",
+            "host",
+            "x-amz-date",
+        ],  # Include x-amz-date in signed headers
     )
 
     # Log the URL for debugging (without sensitive parts)
