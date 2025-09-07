@@ -28,7 +28,6 @@ def _get_client():
         "s3",
         config=config,
         region_name=S3_REGION,  # Explicitly set region here too
-        endpoint_url=f"https://s3.{S3_REGION}.amazonaws.com",  # Force specific regional endpoint
     )
 
 

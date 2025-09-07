@@ -33,7 +33,7 @@ MONGO_DB=ac9_sport
 AWS_ACCESS_KEY_ID=tu_access_key_id
 AWS_SECRET_ACCESS_KEY=tu_secret_access_key
 S3_BUCKET=tu_bucket_name
-S3_REGION=us-east-1
+S3_REGION=us-east-2
 
 # URL base de la API para fallback local (si no hay credenciales S3)
 API_BASE_URL=https://ac9-sport-api.onrender.com

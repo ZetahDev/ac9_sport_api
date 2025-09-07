@@ -94,7 +94,7 @@ def main():
 
             # Intentar crear cliente
             try:
-                boto3.client("s3", region_name=os.getenv("S3_REGION", "us-east-1"))
+                boto3.client("s3", region_name=os.getenv("S3_REGION", "us-east-2"))
                 print("✅ Cliente S3: Creado exitosamente")
             except Exception as e:
                 print(f"❌ Error creando cliente S3: {e}")
